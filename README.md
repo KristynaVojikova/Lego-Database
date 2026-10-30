@@ -40,7 +40,7 @@ Numbering by tens leaves room for new notebooks within a layer.
 
 ## Orchestration
 
-Daily Databricks Job (serverless), 06:00 Europe/Prague:
+Daily Databricks Job (serverless), 05:00 Europe/Prague:
 
 ```
 setup_schemas ─┬─► bronze_rebrickable ─┐
