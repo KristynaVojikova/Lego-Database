@@ -19,10 +19,10 @@ USE CATALOG workspace;
 CREATE OR REPLACE TABLE lego_gold.sets_dashboard AS
 SELECT
     *,
-    ROUND(puvodni_cena_eur / NULLIF(pocet_dilku, 0), 3) AS cena_za_dilek_eur,
+    ROUND(cena_czk / NULLIF(pocet_dilku, 0), 2) AS cena_za_dilek_czk,
     ROUND(puvodni_cena_usd / NULLIF(pocet_dilku, 0), 3) AS cena_za_dilek_usd,
-    FLOOR(rok_vydani / 10) * 10                         AS dekada,
-    puvodni_cena_eur IS NOT NULL                        AS ma_cenu
+    FLOOR(rok_vydani / 10) * 10                         AS dekada
+    -- ma_cenu se bere ze silveru (přes SELECT *)
 FROM lego_silver.lego_sets
 WHERE pocet_dilku > 0;  -- vyřadí položky bez dílků (gear, prázdné záznamy)
 
@@ -35,10 +35,10 @@ SELECT
     COUNT(*)                          AS pocet_setu,
     SUM(pocet_dilku)                  AS dilku_celkem,
     ROUND(AVG(pocet_dilku))           AS prumer_dilku,
-    ROUND(AVG(puvodni_cena_eur), 2)   AS prumerna_cena_eur,
+    ROUND(AVG(cena_czk), 2)   AS prumerna_cena_czk,
     -- vážený průměr: jen sety, které mají cenu
-    ROUND(SUM(puvodni_cena_eur) / NULLIF(SUM(CASE WHEN ma_cenu THEN pocet_dilku END), 0), 3)
-                                      AS cena_za_dilek_eur
+    ROUND(SUM(cena_czk) / NULLIF(SUM(CASE WHEN ma_cenu THEN pocet_dilku END), 0), 3)
+                                      AS cena_za_dilek_czk
 FROM lego_gold.sets_dashboard
 GROUP BY tema, rok_vydani;
 
@@ -52,11 +52,11 @@ SELECT
     MAX(rok_vydani)                             AS posledni_rok,
     SUM(pocet_dilku)                            AS dilku_celkem,
     ROUND(AVG(pocet_dilku))                     AS prumer_dilku,
-    ROUND(AVG(puvodni_cena_eur), 2)             AS prumerna_cena_eur,
-    ROUND(AVG(cena_za_dilek_eur), 3)            AS prumerna_cena_za_dilek_eur,
+    ROUND(AVG(cena_czk), 2)             AS prumerna_cena_czk,
+    ROUND(AVG(cena_za_dilek_czk), 3)            AS prumerna_cena_za_dilek_czk,
     MAX_BY(nazev_stavebnice, pocet_dilku)       AS nejvetsi_set,
     MAX(pocet_dilku)                            AS nejvetsi_set_dilku,
-    MAX_BY(nazev_stavebnice, puvodni_cena_eur)  AS nejdrazsi_set,
-    MAX(puvodni_cena_eur)                       AS nejdrazsi_set_eur
+    MAX_BY(nazev_stavebnice, cena_czk)  AS nejdrazsi_set,
+    MAX(cena_czk)                       AS nejdrazsi_set_czk
 FROM lego_gold.sets_dashboard
 GROUP BY tema;

@@ -6,7 +6,7 @@
 -- MAGIC |---|---|
 -- MAGIC | `lego_gold.sets_minifig_price` | 1 řádek = 1 set; pro scatter plot cena × počet figurek |
 -- MAGIC | `lego_gold.price_by_minifig_count` | průměrné ceny podle počtu figurek (0, 1, … 8+) – bar/line graf |
--- MAGIC | `lego_gold.minifig_price_effect` | kolik EUR v průměru přidá 1 figurka navíc, podle tématu – KPI |
+-- MAGIC | `lego_gold.minifig_price_effect` | kolik Kč v průměru přidá 1 figurka navíc, podle tématu – KPI |
 -- MAGIC | `lego_gold.sets_overview` | všechny sety se základními údaji + počet figurek + obrázek – hlavní přehled |
 -- MAGIC | `lego_gold.minifigs_in_sets` | 1 řádek = figurka v setu, s obrázky figurky i setu – hledání figurek |
 -- MAGIC | `lego_gold.minifigs_catalog` | 1 řádek = figurka; v kolika setech je, od kdy – karta figurky |
@@ -31,15 +31,17 @@ SELECT
     d.pocet_dilku,
     c.pocet_figurek,
     c.pocet_unikatnich_figurek,
-    d.puvodni_cena_eur,
-    d.cena_za_dilek_eur,
-    ROUND(d.puvodni_cena_eur / NULLIF(c.pocet_figurek, 0), 2) AS cena_za_figurku_eur,
+    d.cena_czk,
+    d.cena_czk_zdroj,
+    d.pouzity_kurz,
+    d.cena_za_dilek_czk,
+    ROUND(d.cena_czk / NULLIF(c.pocet_figurek, 0), 2) AS cena_za_figurku_czk,
     d.set_img_url
 FROM lego_gold.sets_dashboard d
 JOIN lego_silver.set_minifig_counts c
     ON c.originalni_cislo = d.originalni_cislo
 WHERE c.pocet_figurek IS NOT NULL
-  AND d.puvodni_cena_eur IS NOT NULL;
+  AND d.cena_czk IS NOT NULL;
 
 -- COMMAND ----------
 
@@ -50,24 +52,24 @@ SELECT
     CASE WHEN pocet_figurek >= 8 THEN '8+'
          ELSE CAST(pocet_figurek AS STRING) END               AS pocet_figurek_skupina,
     COUNT(*)                                                  AS pocet_setu,
-    ROUND(AVG(puvodni_cena_eur), 2)                           AS prumerna_cena_eur,
-    ROUND(PERCENTILE(puvodni_cena_eur, 0.5), 2)               AS medianova_cena_eur,
+    ROUND(AVG(cena_czk), 2)                           AS prumerna_cena_czk,
+    ROUND(PERCENTILE(cena_czk, 0.5), 2)               AS medianova_cena_czk,
     ROUND(AVG(pocet_dilku))                                   AS prumer_dilku,
-    ROUND(AVG(cena_za_dilek_eur), 3)                          AS prumerna_cena_za_dilek_eur
+    ROUND(AVG(cena_za_dilek_czk), 3)                          AS prumerna_cena_za_dilek_czk
 FROM lego_gold.sets_minifig_price
 GROUP BY ALL;
 
 -- COMMAND ----------
 
--- Lineární regrese: o kolik EUR v průměru roste cena s každou figurkou navíc
+-- Lineární regrese: o kolik Kč v průměru roste cena s každou figurkou navíc
 CREATE OR REPLACE TABLE lego_gold.minifig_price_effect AS
 SELECT
     tema,
     COUNT(*)                                                     AS pocet_setu,
-    ROUND(REGR_SLOPE(puvodni_cena_eur, pocet_figurek), 2)        AS eur_za_figurku_navic,
-    ROUND(REGR_R2(puvodni_cena_eur, pocet_figurek), 2)           AS r2_figurky,
-    ROUND(REGR_SLOPE(puvodni_cena_eur, pocet_dilku) * 100, 2)    AS eur_za_100_dilku_navic,
-    ROUND(REGR_R2(puvodni_cena_eur, pocet_dilku), 2)             AS r2_dilky
+    ROUND(REGR_SLOPE(cena_czk, pocet_figurek), 2)        AS czk_za_figurku_navic,
+    ROUND(REGR_R2(cena_czk, pocet_figurek), 2)           AS r2_figurky,
+    ROUND(REGR_SLOPE(cena_czk, pocet_dilku) * 100, 2)    AS czk_za_100_dilku_navic,
+    ROUND(REGR_R2(cena_czk, pocet_dilku), 2)             AS r2_dilky
 FROM lego_gold.sets_minifig_price
 GROUP BY tema;
 
@@ -87,7 +89,11 @@ SELECT
     c.pocet_unikatnich_figurek,
     d.puvodni_cena_eur,
     d.puvodni_cena_usd,
-    d.cena_za_dilek_eur,
+    d.cena_czk,
+    d.cena_czk_zdroj,
+    d.pouzity_kurz,
+    d.ma_cenu,
+    d.cena_za_dilek_czk,
     d.hodnoceni,
     d.set_img_url,
     d.set_url
@@ -110,6 +116,8 @@ SELECT
     o.tema,
     o.rok_vydani,
     o.puvodni_cena_eur,
+    o.cena_czk,
+    o.cena_czk_zdroj,
     o.set_img_url
 FROM lego_silver.set_minifigs f
 JOIN lego_gold.sets_overview o
